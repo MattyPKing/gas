@@ -1,0 +1,61 @@
+/**
+ * Unpivots Data to create a database-like structure.
+ * NOTE: Range, Layout pairs can be added indefinitely. e.g. - =UNPIVOT(A2:B20, "V", C2:H20, "B", C1:H1, "H", I2:I20, "V", .... )
+ *
+ * @param {...range} range The ranges or arrays of the values to unpivot.
+ * @param {...layout} layout A one letter string designating the layout of the values: Either "V","H" or "B" for Vertical, Horizontal, or Both.
+ * @return The unpivoted data.
+ * @customfunction
+ */
+function UNPIVOT(range, layout) {
+  // Custom Function written by Matt King originally 12/19/21
+  
+  // Section 1: Restack arguments so that they form an array with values arrays accompanied by their respective layout designation "V","H", or "B"
+  var args = [];
+  for (let i = 0; i < arguments.length; i=i+2) {args.push([arguments[i], arguments[i + 1]]) }
+  Logger.log(args);
+  // [End Section 1]
+
+  // Section 2: Check Inputs, Throw Errors, Construct empty output array.
+    // Throw error if inputs aren't entered correctly.
+    // Throw errors if inputs aren't the same heights or widths to properly unpivot.
+  if(!args.map(e=>e[1]).every(e=> e=='V' || e=='B' || e=='H')){throw 'The inputs to the function must be in pairs of range/arrays and layout codes. Every other input must be a "V", "B", or "H"'}
+
+  var widths  = args.filter(e => e[1] === 'B' || e[1] === 'H').map(e=>e[0][0].length);
+  var heights = args.filter(e => e[1] === 'B' || e[1] === 'V').map(e=>e[0].length);
+  if(heights.every((e,i,arr)=>e==arr[0])){var height = heights[0]}else{throw '"V" and "B" elements must all be the same Height. Found these: [' + heights.toString()+']'}
+  if(widths.every((e,i,arr)=>e==arr[0])) {var width = widths[0]}  else{throw '"H" and "B" elements must all be the same Width. Found these: [' + widths.toString()+']'}
+  var output = new Array(width * height).fill([]);
+  // [End Section 2]
+
+  //  Section 3: Subdivide the arguments so that each vertical and horizontal range/array is on it's own.
+    // e.g - it will turn the range "A2:C" inputted with a "V"  into A2:A, B2:B and C2:C or turn E1:Z4 inputted with an "H" into E1:Z1,E2:Z2,E3:Z3 and E4:Z4
+  var allParts = [];
+  for (let i = 0; i < args.length; i++) {
+    if (args[i][1] == 'V' && args[i][0][0].length != 1) {
+      for (let j = 0; j < args[i][0][0].length; j++) { allParts.push([args[i][0].map(e => [e[j]]), 'V']) }
+    } else if (args[i][1] == 'H' && args[i][0].length != 1) {
+      for (let j = 0; j < args[i][0].length; j++) { allParts.push([[args[i][0][j]], 'H']) }
+    } else { allParts.push(args[i]) }
+  }
+  Logger.log(allParts);
+  // [End Section 3]
+
+  // Section 4: The Loops: Assign a value to each spot in the output array.
+    // Each loop of "h" runs through the full vertical LENGTH of the output array, adding a column each time.
+    // Each loop of "i" runs through the 'height' of the "B" and "V" arrays, each iteration representing a portion of each output column.
+      //It is 0'ed out for the purposes of assigning values from the "H" arrays.
+    // Each loop of "j" runs through the 'width'  of the "B" and "H" arrays, each iteration representing one value in each output column.
+      //It is 0'ed out for the purposes of assigning values from the "V" arrays.
+      
+  for (let h = 0; h < allParts.length; h++) {
+    for (let i = 0, arr = allParts[h][0], s = allParts[h][1]; i < height; i++) {
+      for (let j = 0; j < width; j++) {
+        //concatenate the values already in a given row with the appropriate value from the data
+        output[i * width + j] = output[i * width + j].concat(arr[i * !(s == 'H')][j * !(s == 'V')]);
+      }
+    }
+  }
+  // [End Section 4]
+  return output;
+}
